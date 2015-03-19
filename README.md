@@ -6,6 +6,27 @@
 Provides monadic interface for computation with discrete random variables.
 Based on: http://web.engr.oregonstate.edu/~erwig/papers/PFP_JFP06.pdf
 
+#### `Prob`
+
+``` purescript
+type Prob = P.Prob
+```
+
+
+#### `prob`
+
+``` purescript
+prob :: Number -> Maybe P.Prob
+```
+
+
+#### `runProb`
+
+``` purescript
+runProb :: P.Prob -> Number
+```
+
+
 #### `ProbList`
 
 ``` purescript
@@ -13,10 +34,17 @@ type ProbList = P.ProbList
 ```
 
 
-#### `Prob`
+#### `probList`
 
 ``` purescript
-type Prob = P.Prob
+probList :: [P.Prob] -> Maybe P.ProbList
+```
+
+
+#### `runProbList`
+
+``` purescript
+runProbList :: P.ProbList -> [P.Prob]
 ```
 
 
@@ -27,38 +55,31 @@ type Dist = P.Dist
 ```
 
 
-#### `Event`
-
-``` purescript
-type Event a = a -> Boolean
-```
-
-
-#### `Spread`
-
-``` purescript
-type Spread a = [a] -> Maybe (P.Dist a)
-```
-
-
-#### `oneOf`
-
-``` purescript
-oneOf :: forall a. (Eq a) => [a] -> Event a
-```
-
-
-#### `just`
-
-``` purescript
-just :: forall a. (Eq a) => a -> Event a
-```
-
-
 #### `dist`
 
 ``` purescript
 dist :: forall a. [Tuple a P.Prob] -> Maybe (P.Dist a)
+```
+
+
+#### `zipDist`
+
+``` purescript
+zipDist :: forall a. [a] -> P.ProbList -> P.Dist a
+```
+
+
+#### `fromFreqs`
+
+``` purescript
+fromFreqs :: forall a. [Tuple a Number] -> Maybe (P.Dist a)
+```
+
+
+#### `choose`
+
+``` purescript
+choose :: forall a. P.Prob -> a -> a -> P.Dist a
 ```
 
 
@@ -83,66 +104,10 @@ extract :: forall a. P.Dist a -> [a]
 ```
 
 
-#### `approx`
+#### `Spread`
 
 ``` purescript
-approx :: forall a. (Ord a) => P.Dist a -> P.Dist a -> Boolean
-```
-
-
-#### `size`
-
-``` purescript
-size :: forall a. P.Dist a -> Number
-```
-
-
-#### `isValid`
-
-``` purescript
-isValid :: forall a. [Tuple a Number] -> Boolean
-```
-
-
-#### `zipDist`
-
-``` purescript
-zipDist :: forall a. [a] -> P.ProbList -> P.Dist a
-```
-
-
-#### `fromFreqs`
-
-``` purescript
-fromFreqs :: forall a. [Tuple a Number] -> Maybe (P.Dist a)
-```
-
-
-#### `norm`
-
-``` purescript
-norm :: forall a. (Ord a) => P.Dist a -> P.Dist a
-```
-
-
-#### `choose`
-
-``` purescript
-choose :: forall a. P.Prob -> a -> a -> P.Dist a
-```
-
-
-#### `reshape`
-
-``` purescript
-reshape :: forall a. Spread a -> P.Dist a -> Maybe (P.Dist a)
-```
-
-
-#### `relative`
-
-``` purescript
-relative :: forall a. [Number] -> Spread a
+type Spread a = [a] -> Maybe (P.Dist a)
 ```
 
 
@@ -153,59 +118,45 @@ uniform :: forall a. Spread a
 ```
 
 
-#### `map`
+#### `relative`
 
 ``` purescript
-map :: forall a b. (Ord b) => (a -> b) -> P.Dist a -> P.Dist b
+relative :: forall a. [Number] -> Spread a
 ```
 
 
-#### `cond`
+#### `reshape`
 
 ``` purescript
-cond :: forall a. P.Dist Boolean -> P.Dist a -> P.Dist a -> P.Dist a
+reshape :: forall a. Spread a -> P.Dist a -> Maybe (P.Dist a)
 ```
 
 
-#### `(?=<<)`
+#### `norm`
 
 ``` purescript
-(?=<<) :: forall a. (a -> Boolean) -> P.Dist a -> Maybe (P.Dist a)
+norm :: forall a. (Ord a) => P.Dist a -> P.Dist a
 ```
 
 
-#### `(>>=?)`
+#### `Event`
 
 ``` purescript
-(>>=?) :: forall a. P.Dist a -> (a -> Boolean) -> Maybe (P.Dist a)
+type Event a = a -> Boolean
 ```
 
 
-#### `filter`
+#### `oneOf`
 
 ``` purescript
-filter :: forall a. (a -> Boolean) -> P.Dist a -> Maybe (P.Dist a)
+oneOf :: forall a. (Eq a) => [a] -> Event a
 ```
 
 
-#### `mapMaybe`
+#### `just`
 
 ``` purescript
-mapMaybe :: forall a b. (a -> Maybe b) -> P.Dist a -> Maybe (P.Dist b)
-```
-
-
-#### `runProb`
-
-``` purescript
-runProb :: P.Prob -> Number
-```
-
-
-#### `prob`
-
-``` purescript
-prob :: Number -> Maybe P.Prob
+just :: forall a. (Eq a) => a -> Event a
 ```
 
 
@@ -213,6 +164,34 @@ prob :: Number -> Maybe P.Prob
 
 ``` purescript
 (??) :: forall a. Event a -> P.Dist a -> P.Prob
+```
+
+
+#### `(?=<<)`
+
+``` purescript
+(?=<<) :: forall a. Event a -> P.Dist a -> Maybe (P.Dist a)
+```
+
+
+#### `(>>=?)`
+
+``` purescript
+(>>=?) :: forall a. P.Dist a -> Event a -> Maybe (P.Dist a)
+```
+
+
+#### `filter`
+
+``` purescript
+filter :: forall a. Event a -> P.Dist a -> Maybe (P.Dist a)
+```
+
+
+#### `cond`
+
+``` purescript
+cond :: forall a. P.Dist Boolean -> P.Dist a -> P.Dist a -> P.Dist a
 ```
 
 
@@ -273,17 +252,31 @@ stdDev :: forall a. Iso a Number -> P.Dist a -> a
 ```
 
 
-#### `probList`
+#### `approx`
 
 ``` purescript
-probList :: [P.Prob] -> Maybe P.ProbList
+approx :: forall a. (Ord a) => P.Dist a -> P.Dist a -> Boolean
 ```
 
 
-#### `runProbList`
+#### `size`
 
 ``` purescript
-runProbList :: P.ProbList -> [P.Prob]
+size :: forall a. P.Dist a -> Number
+```
+
+
+#### `map`
+
+``` purescript
+map :: forall a b. (Ord b) => (a -> b) -> P.Dist a -> P.Dist b
+```
+
+
+#### `mapMaybe`
+
+``` purescript
+mapMaybe :: forall a b. (a -> Maybe b) -> P.Dist a -> Maybe (P.Dist b)
 ```
 
 
@@ -384,6 +377,13 @@ sortElem :: forall a. (Ord a) => [Tuple a Number] -> [Tuple a Number]
 
 ``` purescript
 norm' :: forall a. (Ord a) => [Tuple a Number] -> [Tuple a Number]
+```
+
+
+#### `isValid`
+
+``` purescript
+isValid :: forall a. [Tuple a Number] -> Boolean
 ```
 
 

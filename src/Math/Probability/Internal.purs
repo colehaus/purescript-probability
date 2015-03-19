@@ -45,6 +45,9 @@ sortElem = A.sortBy (compare `on` fst)
 norm' :: forall a. (Ord a) => [Tuple a Number] -> [Tuple a Number]
 norm' = M.toList <<< M.fromListWith (+)
 
+isValid :: forall a. [Tuple a Number] -> Boolean
+isValid = (~~) 1 <<< sumP
+
 instance functorDist :: Functor Dist where
   (<$>) f (Dist d) = Dist $ first f <$> d
 
