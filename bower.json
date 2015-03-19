@@ -1,0 +1,33 @@
+{
+  "name": "purescript-probability",
+  "homepage": "https://github.com/pseudonom/purescript-probability",
+  "description": "Provides monadic interface for computation with discrete random variables.",
+  "keywords": [
+      "purescript",
+      "monad",
+      "probability"
+  ],
+  "authors": [
+    "pseudonom <escalier@riseup.net>",
+    "Martin Erwig <erwig@eecs.oregonstate.edu>",
+    "Steve Kollmansberger"
+  ],
+  "license": "BSD3",
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "tests",
+    "test",
+    "tmp",
+    "bower.json",
+    "Gruntfile.js",
+    "package.json"
+  ],
+  "dependencies": {
+      "purescript-arrows": "~0.3.0",
+      "purescript-foldable-traversable": "~0.3.0",
+      "purescript-maps": "~0.3.2"
+  }
+}
