@@ -2,21 +2,24 @@
 -- | Based on: http://web.engr.oregonstate.edu/~erwig/papers/PFP_JFP06.pdf
 module Math.Probability where
 
-import qualified Data.Array as A
-import qualified Data.Foldable as F
-import Data.Maybe
-import Data.Maybe.Unsafe
-import Data.Monoid.All
-import Data.Profunctor.Strong
-import Data.Tuple
-import Math
+import Data.Array as A
+import Control.Fold (mconcat, foldl)
+import Data.Foldable as F
+import Data.Int as I
+import Data.Maybe (Maybe(..))
+import Data.Monoid.Conj (Conj(..))
+import Data.Newtype (unwrap)
+import Data.Profunctor.Strong (second)
+import Data.Tuple (Tuple(..), fst, snd)
+import Math (pow, sqrt)
+import Prelude
 
-import qualified Math.Probability.Internal as P
+import Math.Probability.Internal as P
 
 type Prob = P.Prob
 
 prob :: Number -> Maybe P.Prob
-prob n | 0 P.<~ n && n P.<~ 1 = Just $ P.Prob n
+prob n | 0.0 P.<~ n && n P.<~ 1.0 = Just $ P.Prob n
 prob n | otherwise = Nothing
 
 runProb :: P.Prob -> Number
@@ -24,49 +27,51 @@ runProb (P.Prob p) = p
 
 type ProbList = P.ProbList
 
-probList :: [P.Prob] -> Maybe P.ProbList
+probList :: Array P.Prob -> Maybe P.ProbList
 probList ps =
-  if F.sum (runProb <$> ps) P.~~ 1
+  if F.sum (runProb <$> ps) P.~~ 1.0
   then Just $ P.ProbList ps
   else Nothing
 
-runProbList :: P.ProbList -> [P.Prob]
+runProbList :: P.ProbList -> Array P.Prob
 runProbList (P.ProbList ps) = ps
 
 type Dist = P.Dist
 
-dist :: forall a. [Tuple a P.Prob] -> Maybe (P.Dist a)
+dist :: forall a. Array (Tuple a P.Prob) -> Maybe (P.Dist a)
 dist d =
   if P.isValid d'
   then Just $ P.Dist d'
   else Nothing where
   d' = second runProb <$> d
 
-zipDist :: forall a. [a] -> P.ProbList -> P.Dist a
+zipDist :: forall a. Array a -> P.ProbList -> P.Dist a
 zipDist as (P.ProbList ps) = P.Dist $ A.zipWith (\a (P.Prob p) -> Tuple a p) as ps
 
-fromFreqs :: forall a. [Tuple a Number] -> Maybe (P.Dist a)
-fromFreqs xs = let q = P.sumP xs in dist $ second (P.Prob <<< (/ q)) <$> xs
+fromFreqs :: forall a. Array (Tuple a Number) -> Maybe (P.Dist a)
+fromFreqs xs =
+  let q = P.sumP xs in
+  dist $ second (P.Prob <<< (_ / q)) <$> xs
 
 choose :: forall a. P.Prob -> a -> a -> P.Dist a
-choose p x y = let p' = runProb p in P.Dist [Tuple x p', Tuple y (1-p')]
+choose p x y = let p' = runProb p in P.Dist [Tuple x p', Tuple y (1.0-p')]
 
-runDist :: forall a. P.Dist a -> [Tuple a Number]
+runDist :: forall a. P.Dist a -> Array (Tuple a Number)
 runDist (P.Dist a) = a
 
 distProbs :: forall a. P.Dist a -> P.ProbList
 distProbs (P.Dist a) = P.ProbList $ P.Prob <<< snd <$> a
 
-extract :: forall a. P.Dist a -> [a]
+extract :: forall a. P.Dist a -> Array a
 extract = (<$>) fst <<< runDist
 
-type Spread a = [a] -> Maybe (P.Dist a)
+type Spread a = Array a -> Maybe (P.Dist a)
 
 uniform :: forall a. Spread a
-uniform = fromFreqs <<< (<$>) (\a -> Tuple a 1)
+uniform = fromFreqs <<< (<$>) (\a -> Tuple a 1.0)
 
-relative :: forall a. [Number] -> Spread a
-relative ns = fromFreqs <<< flip zip ns
+relative :: forall a. Array Number -> Spread a
+relative ns = fromFreqs <<< flip A.zip ns
 
 reshape :: forall a. Spread a -> P.Dist a -> Maybe (P.Dist a)
 reshape s = s <<< extract
@@ -76,23 +81,20 @@ norm = P.lift P.norm'
 
 type Event a = a -> Boolean
 
-oneOf :: forall a. (Eq a) => [a] -> Event a
+oneOf :: forall a. (Eq a) => Array a -> Event a
 oneOf = flip F.elem
 
 just :: forall a. (Eq a) => a -> Event a
 just = (==)
 
-infixr 1 ??
-(??) :: forall a. Event a -> P.Dist a -> P.Prob
-(??) p = P.Prob <<< P.sumP <<< A.filter (p <<< fst) <<< runDist
+infixr 1 lookup as ??
+lookup :: forall a. Event a -> P.Dist a -> P.Prob
+lookup p = P.Prob <<< P.sumP <<< A.filter (p <<< fst) <<< runDist
 
-infixl 1 >>=?
-infixr 1 ?=<<
-(?=<<) :: forall a. Event a -> P.Dist a -> Maybe (P.Dist a)
-(?=<<) = filter
-(>>=?) :: forall a. P.Dist a -> Event a -> Maybe (P.Dist a)
-(>>=?) = flip filter
-
+infixl 1 ffilter as >>=?
+infixr 1 filter as ?=<<
+ffilter :: forall a. P.Dist a -> Event a -> Maybe (P.Dist a)
+ffilter = flip filter
 filter :: forall a. Event a -> P.Dist a -> Maybe (P.Dist a)
 filter p = fromFreqs <<< A.filter (p <<< fst) <<< runDist
 
@@ -121,7 +123,7 @@ expected i = from i <<< F.sum <<< (<$>) (\(Tuple a b) -> to i a * b) <<< runDist
 
 variance :: forall a. Iso a Number -> P.Dist a -> a
 variance i xs =
-  from i <<< expected i' $ (\x -> pow (x - m) 2) <$> xs' where
+  from i <<< expected i' $ (\x -> pow (x - m) 2.0) <$> xs' where
     i' = (Iso id id)
     m = expected i' xs'
     xs' = to i <$> xs
@@ -131,11 +133,11 @@ stdDev i = from i <<< sqrt <<< to i <<< variance i
 
 approx :: forall a. (Ord a) => P.Dist a -> P.Dist a -> Boolean
 approx (P.Dist xs) (P.Dist ys) =
-  runAll <<< F.mconcat $
-  A.zipWith (\(Tuple x p) (Tuple y q) -> All $ x == y && p P.~~ q) xs ys
+  unwrap <<< foldl mconcat $
+  A.zipWith (\(Tuple x p) (Tuple y q) -> Conj $ x == y && p P.~~ q) xs ys
 
 size :: forall a. P.Dist a -> Number
-size = A.length <<< runDist
+size = I.toNumber <<< A.length <<< runDist
 
 map :: forall a b. (Ord b) => (a -> b) -> P.Dist a -> P.Dist b
 map f = norm <<< (<$>) f
