@@ -12,7 +12,11 @@
     "Martin Erwig <erwig@eecs.oregonstate.edu>",
     "Steve Kollmansberger"
   ],
-  "license": "BSD3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pseudonom/purescript-probability.git"
+  },
+  "license": "BSD-3-Clause",
   "ignore": [
     "**/.*",
     "bower_components",
@@ -26,9 +30,16 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-arrows": "~0.3.0",
-    "purescript-foldable-traversable": "~0.3.0",
-    "purescript-maps": "~0.3.2"
+    "purescript-profunctor": "~3.1.0",
+    "purescript-foldable-traversable": "~3.4.0",
+    "purescript-maps": "~3.5.0",
+    "purescript-maybe": "~3.0.0",
+    "purescript-monoid": "~3.3.0",
+    "purescript-lists": "~4.8.0",
+    "purescript-prelude": "~3.1.0",
+    "purescript-folds": "~3.1.0",
+    "purescript-integers": "~3.2.0",
+    "purescript-newtype": "~2.0.0"
   },
-  "version": "0.0.1"
+  "version": "0.0.2"
 }
