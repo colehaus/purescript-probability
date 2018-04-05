@@ -112,24 +112,20 @@ marginalize f d =
   P.Dist <<< (<$>) (\b -> Tuple b <<< runProb $ ((==) b <<< f) ?? d) <<<
   A.nub $ f <$> extract d
 
-data Iso a b = Iso (a -> b) (b -> a)
-to :: forall a b. Iso a b -> a -> b
-to (Iso f _) = f
-from :: forall a b. Iso a b -> b -> a
-from (Iso _ f) = f
+type Iso a b = { to :: (a -> b), from :: (b -> a) }
 
 expected :: forall a. Iso a Number -> P.Dist a -> a
-expected i = from i <<< F.sum <<< (<$>) (\(Tuple a b) -> to i a * b) <<< runDist
+expected i = i.from <<< F.sum <<< (<$>) (\(Tuple a b) -> i.to a * b) <<< runDist
 
 variance :: forall a. Iso a Number -> P.Dist a -> a
 variance i xs =
-  from i <<< expected i' $ (\x -> pow (x - m) 2.0) <$> xs' where
-    i' = (Iso id id)
+  i.from <<< expected i' $ (\x -> pow (x - m) 2.0) <$> xs' where
+    i' = { to: id, from: id }
     m = expected i' xs'
-    xs' = to i <$> xs
+    xs' = i.to <$> xs
 
 stdDev :: forall a. Iso a Number -> P.Dist a -> a
-stdDev i = from i <<< sqrt <<< to i <<< variance i
+stdDev i = i.from <<< sqrt <<< i.to <<< variance i
 
 approx :: forall a. (Ord a) => P.Dist a -> P.Dist a -> Boolean
 approx (P.Dist xs) (P.Dist ys) =
