@@ -41,5 +41,4 @@
     "purescript-integers": "~3.2.0",
     "purescript-newtype": "~2.0.0"
   },
-  "version": "0.0.2"
 }
