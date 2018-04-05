@@ -68,26 +68,15 @@ instance bindDist :: Bind Dist where
 
 instance monadDist :: Monad Dist
 
--- Derivable boilerplate
+derive newtype instance eqProb :: Eq Prob
+derive newtype instance ordProb :: Ord Prob
+derive newtype instance showProb :: Show Prob
 
-instance eqProb :: Eq Prob where
-  eq (Prob a) (Prob b) = a == b
-instance ordProb :: Ord Prob where
-  compare (Prob a) (Prob b) = compare a b
-instance showProb :: Show Prob where
-  show (Prob a) = show a
+derive newtype instance eqDist :: (Eq a) => Eq (Dist a)
+derive newtype instance ordDist :: (Ord a) => Ord (Dist a)
+derive newtype instance showDist :: (Show a) => Show (Dist a)
 
-instance eqDist :: (Eq a) => Eq (Dist a) where
-  eq (Dist a) (Dist b) = a == b
-instance ordDist :: (Ord a) => Ord (Dist a) where
-  compare (Dist a) (Dist b) = a `compare` b
-instance showDist :: (Show a) => Show (Dist a) where
-  show (Dist a) = "Dist " <> show a
-
-instance eqProbList :: Eq ProbList where
-  eq (ProbList a) (ProbList b) = a == b
-instance ordProbList :: Ord ProbList where
-  compare (ProbList a) (ProbList b) = a `compare` b
-instance showProbList :: Show ProbList where
-  show (ProbList a) = "ProbList (" <> show a <> ")"
+derive newtype instance eqProbList :: Eq ProbList
+derive newtype instance ordProbList :: Ord ProbList
+derive newtype instance showProbList :: Show ProbList
 
