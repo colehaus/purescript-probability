@@ -1,24 +1,29 @@
-module Math.Probability.Dist where
+module Math.Probability.Dist
+  ( module Math.Probability.Dist
+  , module ForReExport
+  ) where
 
 import Prelude
 
-import Data.Either (fromRight)
 import Data.Foldable (class Foldable)
 import Data.Foldable as Foldable
 import Data.List (List(Nil, Cons))
-import Data.List.Unique as Unique
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromJust)
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty.Indexed as Indexed
-import Data.Profunctor.Strong (second)
 import Data.Ratio (Ratio)
-import Data.Tuple (Tuple, fst, snd)
+import Data.Set (Set)
+import Data.Set as Set
+import Data.Tuple (Tuple(..), fst, snd)
+import Partial.Unsafe (unsafeCrashWith, unsafePartialBecause)
+
 import Math.Probability.Dist.Internal (Dist(..), unDist)
+import Math.Probability.Dist.Internal (Dist) as ForReExport
 import Math.Probability.Prob (Prob)
 import Math.Probability.Prob as Prob
-import Partial.Unsafe (unsafeCrashWith, unsafePartialBecause)
+
 
 make ::
      forall a. Ord a
@@ -29,6 +34,7 @@ make d =
   map (second (\x -> fromJustNote <<< Prob.make $ (Prob.unmake x / q))) $
   unfolded
   where
+    second f (Tuple a b) = Tuple a $ f b
     fromJustNote x =
       unsafePartialBecause
         "`Prob` over sum of `Probs` should always be between 0 and 1" $
@@ -73,9 +79,5 @@ values ::
      forall a.
      Ord a
   => Dist a
-  -> NonEmpty Unique.List a
-values d = Indexed.deindex fst (toUniqueNoted <<< Map.keys) <<< unmake $ d
-  where
-    toUniqueNoted x =
-      unsafePartialBecause "`Map` keys are necessarily unique" $
-      fromRight <<< Unique.fromFoldable $ x
+  -> NonEmpty Set a
+values d = Indexed.deindex fst (Set.fromFoldable <<< Map.keys) <<< unmake $ d

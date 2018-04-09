@@ -33,15 +33,8 @@
     "purescript-foldable-traversable": "~3.7.1",
     "purescript-indexed-nonempty": "~0.1.0",
     "purescript-lists": "~4.12.0",
-    "purescript-maps": "~3.6.0",
-    "purescript-maybe": "~3.1.0",
-    "purescript-monoid": "~3.3.0",
-    "purescript-newtype": "~2.0.0",
     "purescript-prelude": "~3.2.0",
-    "purescript-profunctor": "~3.2.0",
     "purescript-sets": "~3.1.0",
-    "purescript-transformers": "~3.6.0",
-    "purescript-unique-lists": "~0.0.1",
     "purescript-rationals": "~4.0.0"
   }
 }
