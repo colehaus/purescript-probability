@@ -2,143 +2,206 @@
 -- | Based on: http://web.engr.oregonstate.edu/~erwig/papers/PFP_JFP06.pdf
 module Math.Probability where
 
-import Data.Array as A
-import Control.Fold (mconcat, foldl)
-import Data.Foldable as F
-import Data.Int as I
-import Data.Maybe (Maybe(..))
-import Data.Monoid.Conj (Conj(..))
-import Data.Newtype (unwrap)
-import Data.Profunctor.Strong (second)
-import Data.Tuple (Tuple(..), fst, snd)
-import Math (pow, sqrt)
 import Prelude
 
-import Math.Probability.Internal as P
+import Data.Foldable as Foldable
+import Data.Int (round)
+import Data.List (List(Nil), (:))
+import Data.List as List
+import Data.List.Unique as Unique
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Map.Extras (mapKeysMaybe, mapKeysWith)
+import Data.Maybe (Maybe, fromJust)
+import Data.NonEmpty (NonEmpty, head, tail)
+import Data.NonEmpty.Indexed as Indexed
+import Data.Rational (Rational, toNumber, (%))
+import Data.Tuple (Tuple(Tuple))
+import Math (pow, sqrt)
+import Math.Probability.Dist as Dist
+import Math.Probability.Dist.Internal as Dist
+import Math.Probability.Dist.Internal (Dist(MkDist))
+import Math.Probability.Prob as Prob
+import Math.Probability.Prob.Internal (Prob(..), addProb)
+import Partial.Unsafe (unsafePartialBecause)
 
-type Prob = P.Prob
+complement :: Prob -> Prob
+complement (MkProb p) = MkProb $ (1 % 1) - p
 
-prob :: Number -> Maybe P.Prob
-prob n | 0.0 P.<~ n && n P.<~ 1.0 = Just $ P.Prob n
-prob n | otherwise = Nothing
+choose :: forall a. Prob -> a -> a -> Dist a
+choose p x y = MkDist $ Tuple x p : Tuple y (complement p) : Nil
 
-runProb :: P.Prob -> Number
-runProb (P.Prob p) = p
+type Spread a = NonEmpty Unique.List a -> Dist a
 
-type ProbList = P.ProbList
+uniform ::
+     forall a.
+     Ord a
+  => Spread a
+uniform =
+  Dist.make <<<
+  Indexed.index
+    (_ `Tuple` top)
+    (Map.fromFoldable <<< Unique.unsafeMapBecause reason (_ `Tuple` top))
+  where
+    reason = "Adding a `1` to everything shouldn't violate uniqueness"
 
-probList :: Array P.Prob -> Maybe P.ProbList
-probList ps =
-  if F.sum (runProb <$> ps) P.~~ 1.0
-  then Just $ P.ProbList ps
-  else Nothing
+relative ::
+     forall a. Ord a
+  => NonEmpty List Prob
+  -> Spread a
+relative ns as =
+  Dist.make <<<
+  Indexed.NonEmpty (Tuple (head as) (head ns)) <<< Map.fromFoldable $
+  List.zip (Unique.toUnfoldable $ tail as) (tail ns)
 
-runProbList :: P.ProbList -> Array P.Prob
-runProbList (P.ProbList ps) = ps
+reshape ::
+     forall a. Ord a
+  => Spread a
+  -> Dist a
+  -> Dist a
+reshape s = s <<< Dist.values
 
-type Dist = P.Dist
-
-dist :: forall a. Array (Tuple a P.Prob) -> Maybe (P.Dist a)
-dist d =
-  if P.isValid d'
-  then Just $ P.Dist d'
-  else Nothing where
-  d' = second runProb <$> d
-
-zipDist :: forall a. Array a -> P.ProbList -> P.Dist a
-zipDist as (P.ProbList ps) = P.Dist $ A.zipWith (\a (P.Prob p) -> Tuple a p) as ps
-
-fromFreqs :: forall a. Array (Tuple a Number) -> Maybe (P.Dist a)
-fromFreqs xs =
-  let q = P.sumP xs in
-  dist $ second (P.Prob <<< (_ / q)) <$> xs
-
-choose :: forall a. P.Prob -> a -> a -> P.Dist a
-choose p x y = let p' = runProb p in P.Dist [Tuple x p', Tuple y (1.0-p')]
-
-runDist :: forall a. P.Dist a -> Array (Tuple a Number)
-runDist (P.Dist a) = a
-
-distProbs :: forall a. P.Dist a -> P.ProbList
-distProbs (P.Dist a) = P.ProbList $ P.Prob <<< snd <$> a
-
-extract :: forall a. P.Dist a -> Array a
-extract = (<$>) fst <<< runDist
-
-type Spread a = Array a -> Maybe (P.Dist a)
-
-uniform :: forall a. Spread a
-uniform = fromFreqs <<< (<$>) (\a -> Tuple a 1.0)
-
-relative :: forall a. Array Number -> Spread a
-relative ns = fromFreqs <<< flip A.zip ns
-
-reshape :: forall a. Spread a -> P.Dist a -> Maybe (P.Dist a)
-reshape s = s <<< extract
-
-norm :: forall a. (Ord a) => P.Dist a -> P.Dist a
-norm = P.lift P.norm'
+norm ::
+     forall a. Ord a
+  => Dist a
+  -> Dist a
+norm = Dist.lift (Map.toUnfoldable <<< Map.fromFoldableWith addProb)
 
 type Event a = a -> Boolean
 
-oneOf :: forall a. (Eq a) => Array a -> Event a
-oneOf = flip F.elem
+oneOf :: forall a. (Eq a) => List a -> Event a
+oneOf = flip Foldable.elem
 
 just :: forall a. (Eq a) => a -> Event a
 just = (==)
 
 infixr 1 lookup as ??
-lookup :: forall a. Event a -> P.Dist a -> P.Prob
-lookup p = P.Prob <<< P.sumP <<< A.filter (p <<< fst) <<< runDist
+lookup ::
+     forall a.
+     Ord a
+  => Event a
+  -> Dist a
+  -> Prob
+lookup p =
+  fromJustNoted <<<
+  Prob.make <<<
+  Dist.sum <<<
+  asList <<< Map.toUnfoldable <<< Map.filterKeys p <<< toMap <<< Dist.unmake
+  where
+    fromJustNoted x =
+      unsafePartialBecause
+        "Any individual event in a `Dist` should have a proper probability" $
+      fromJust x
+    asList :: List (Tuple a Prob) -> List (Tuple a Prob)
+    asList = id
 
 infixl 1 ffilter as >>=?
 infixr 1 filter as ?=<<
-ffilter :: forall a. P.Dist a -> Event a -> Maybe (P.Dist a)
+ffilter :: forall a. Ord a => Dist a -> Event a -> Maybe (Dist a)
 ffilter = flip filter
-filter :: forall a. Event a -> P.Dist a -> Maybe (P.Dist a)
-filter p = fromFreqs <<< A.filter (p <<< fst) <<< runDist
+filter ::
+     forall a.
+     Ord a
+  => Event a
+  -> Dist a
+  -> Maybe (Dist a)
+filter p d =
+  (\({ key, value }) -> Dist.make $ (Tuple key value) Indexed.:| key `Map.delete` m) <$>
+  Map.findMin m
+  where
+    m =
+      Map.filterKeys p <<< toMap <<< Dist.unmake $ d
 
-cond :: forall a. P.Dist Boolean -> P.Dist a -> P.Dist a -> P.Dist a
+cond :: forall a. Dist Boolean -> Dist a -> Dist a -> Dist a
 cond b d d' = b >>= \c -> if c then d else d'
 
-joinDists :: forall a b c. (a -> b -> c) -> P.Dist a -> (a -> P.Dist b) -> P.Dist c
+joinDists :: forall a b c. (a -> b -> c) -> Dist a -> (a -> Dist b) -> Dist c
 joinDists f as bs'a = do
   a <- as
   b <- bs'a a
   pure $ f a b
 
-marginalize :: forall a b. (Eq b) => (a -> b) -> P.Dist a -> P.Dist b
-marginalize f d =
-  P.Dist <<< (<$>) (\b -> Tuple b <<< runProb $ ((==) b <<< f) ?? d) <<<
-  A.nub $ f <$> extract d
+marginalize ::
+     forall a b.
+     Ord a
+  => Ord b
+  => (a -> b)
+  -> Dist a
+  -> Dist b
+marginalize f = lift $ Indexed.reindex f (mapKeysWith f addProb)
 
 type Iso a b = { to :: (a -> b), from :: (b -> a) }
 
-expected :: forall a. Iso a Number -> P.Dist a -> a
-expected i = i.from <<< F.sum <<< (<$>) (\(Tuple a b) -> i.to a * b) <<< runDist
+expected ::
+     forall a.
+     Ord a
+  => Iso a Rational
+  -> Dist a
+  -> a
+expected i =
+  i.from <<<
+  Foldable.sum <<<
+  asList <<<
+  (<$>) (\(Tuple a b) -> i.to a * Prob.unmake b) <<<
+  Map.toUnfoldable <<< toMap <<< Dist.unmake
+  where
+    asList :: List Rational -> List Rational
+    asList = id
 
-variance :: forall a. Iso a Number -> P.Dist a -> a
+variance :: forall a. Iso a Rational -> Dist a -> a
 variance i xs =
-  i.from <<< expected i' $ (\x -> pow (x - m) 2.0) <$> xs' where
+  i.from <<< expected i' $
+  (\x -> numToRational $ pow (toNumber $ x - m) 2.0) <$> xs'
+  where
+    numToRational n = (round $ n * 10e6) % round 10e6
     i' = { to: id, from: id }
     m = expected i' xs'
     xs' = i.to <$> xs
 
-stdDev :: forall a. Iso a Number -> P.Dist a -> a
-stdDev i = i.from <<< sqrt <<< i.to <<< variance i
+stdDev :: forall a. Iso a Rational -> Dist a -> a
+stdDev i = i.from <<< numToRational <<< sqrt <<< toNumber <<< i.to <<< variance i
+  where
+    numToRational n = (round $ n * 10e6) % round 10e6
 
-approx :: forall a. (Ord a) => P.Dist a -> P.Dist a -> Boolean
-approx (P.Dist xs) (P.Dist ys) =
-  unwrap <<< foldl mconcat $
-  A.zipWith (\(Tuple x p) (Tuple y q) -> Conj $ x == y && p P.~~ q) xs ys
+size ::
+     forall a. Ord a
+  => Dist a
+  -> Int
+size = Map.size <<< toMap <<< Dist.unmake
 
-size :: forall a. P.Dist a -> Number
-size = I.toNumber <<< A.length <<< runDist
-
-map :: forall a b. (Ord b) => (a -> b) -> P.Dist a -> P.Dist b
+map ::
+     forall a b. Ord b
+  => (a -> b)
+  -> Dist a
+  -> Dist b
 map f = norm <<< (<$>) f
 
-mapMaybe :: forall a b. (a -> Maybe b) -> P.Dist a -> Maybe (P.Dist b)
-mapMaybe f =
-  fromFreqs <<< A.mapMaybe (\(Tuple a p) -> flip Tuple p <$> f a) <<< runDist
+mapMaybe ::
+     forall a b.
+     Ord a
+  => Ord b
+  => (a -> Maybe b)
+  -> Dist a
+  -> Maybe (Dist b)
+mapMaybe f dist =
+  (\({ key, value }) -> Dist.make $ Tuple key value Indexed.:| key `Map.delete` m) <$>
+  Map.findMin m
+  where
+    m =
+      mapKeysMaybe f <<< toMap <<< Dist.unmake $ dist
 
+toMap ::
+     forall v k.
+     Ord k
+  => Indexed.NonEmpty Map k v
+  -> Map k v
+toMap = Indexed.fromNonEmpty Map.insert
+
+lift ::
+     forall a b.
+     Ord a
+  => Ord b
+  => (Indexed.NonEmpty Map a Prob -> Indexed.NonEmpty Map b Prob)
+  -> Dist a
+  -> Dist b
+lift f = Dist.make <<< f <<< Dist.unmake
