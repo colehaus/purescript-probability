@@ -17,5 +17,5 @@ instance boundedProb :: Bounded Prob where
   top = MkProb (1 % 1)
   bottom = MkProb (0 % 1)
 
-addProb :: Prob -> Prob -> Prob
-addProb (MkProb l) (MkProb r) = MkProb $ l + r
+add :: Prob -> Prob -> Prob
+add (MkProb l) (MkProb r) = MkProb $ l + r

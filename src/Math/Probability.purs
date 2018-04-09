@@ -1,29 +1,34 @@
 -- | Provides monadic interface for computation with discrete random variables.
 -- | Based on: http://web.engr.oregonstate.edu/~erwig/papers/PFP_JFP06.pdf
-module Math.Probability where
+module Math.Probability
+  ( module Math.Probability
+  ) where
 
 import Prelude
 
 import Data.Foldable as Foldable
 import Data.Int (round)
 import Data.List (List(Nil), (:))
-import Data.List as List
-import Data.List.Unique as Unique
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Map.Extras (mapKeysMaybe, mapKeysWith)
 import Data.Maybe (Maybe, fromJust)
-import Data.NonEmpty (NonEmpty, head, tail)
+import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty.Indexed as Indexed
 import Data.Rational (Rational, toNumber, (%))
+import Data.Set (Set)
+import Data.Set as Set
 import Data.Tuple (Tuple(Tuple))
 import Math (pow, sqrt)
-import Math.Probability.Dist as Dist
-import Math.Probability.Dist.Internal as Dist
-import Math.Probability.Dist.Internal (Dist(MkDist))
-import Math.Probability.Prob as Prob
-import Math.Probability.Prob.Internal (Prob(..), addProb)
 import Partial.Unsafe (unsafePartialBecause)
+
+import Math.Probability.Dist as Dist
+import Math.Probability.Dist.Internal (Dist(..))
+import Math.Probability.Dist.Internal as Dist
+import Math.Probability.Prob as Prob
+import Math.Probability.Prob.Internal (Prob(..))
+import Math.Probability.Prob.Internal as Prob
+
 
 complement :: Prob -> Prob
 complement (MkProb p) = MkProb $ (1 % 1) - p
@@ -31,7 +36,7 @@ complement (MkProb p) = MkProb $ (1 % 1) - p
 choose :: forall a. Prob -> a -> a -> Dist a
 choose p x y = MkDist $ Tuple x p : Tuple y (complement p) : Nil
 
-type Spread a = NonEmpty Unique.List a -> Dist a
+type Spread a = NonEmpty Set a -> Dist a
 
 uniform ::
      forall a.
@@ -39,20 +44,15 @@ uniform ::
   => Spread a
 uniform =
   Dist.make <<<
-  Indexed.index
-    (_ `Tuple` top)
-    (Map.fromFoldable <<< Unique.unsafeMapBecause reason (_ `Tuple` top))
-  where
-    reason = "Adding a `1` to everything shouldn't violate uniqueness"
+  Indexed.index (_ `Tuple` top) (Map.fromFoldable <<< Set.map (_ `Tuple` top))
 
 relative ::
      forall a. Ord a
-  => NonEmpty List Prob
+  => (a -> Prob)
   -> Spread a
-relative ns as =
+relative f =
   Dist.make <<<
-  Indexed.NonEmpty (Tuple (head as) (head ns)) <<< Map.fromFoldable $
-  List.zip (Unique.toUnfoldable $ tail as) (tail ns)
+  Indexed.index (Tuple <*> f) (Map.fromFoldable <<< Set.map (Tuple <*> f))
 
 reshape ::
      forall a. Ord a
@@ -65,7 +65,7 @@ norm ::
      forall a. Ord a
   => Dist a
   -> Dist a
-norm = Dist.lift (Map.toUnfoldable <<< Map.fromFoldableWith addProb)
+norm = Dist.lift (Map.toUnfoldable <<< Map.fromFoldableWith Prob.add)
 
 type Event a = a -> Boolean
 
@@ -128,7 +128,7 @@ marginalize ::
   => (a -> b)
   -> Dist a
   -> Dist b
-marginalize f = lift $ Indexed.reindex f (mapKeysWith f addProb)
+marginalize f = lift $ Indexed.reindex f (mapKeysWith Prob.add f)
 
 type Iso a b = { to :: (a -> b), from :: (b -> a) }
 

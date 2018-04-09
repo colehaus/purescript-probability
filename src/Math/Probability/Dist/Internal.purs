@@ -4,8 +4,8 @@ import Prelude
 
 import Data.List (List)
 import Data.List as List
-import Data.Profunctor.Strong (first)
 import Data.Tuple (Tuple(..))
+
 import Math.Probability.Prob.Internal (Prob)
 
 newtype Dist a = MkDist (List (Tuple a Prob))
@@ -15,6 +15,8 @@ derive newtype instance showDist :: (Show a) => Show (Dist a)
 
 instance functorDist :: Functor Dist where
   map f (MkDist d) = MkDist $ first f <$> d
+    where
+      first f (Tuple a b) = Tuple (f a) b
 
 instance applyDist :: Apply Dist where
   apply (MkDist d) a = MkDist do
