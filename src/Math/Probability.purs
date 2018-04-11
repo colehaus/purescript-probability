@@ -14,6 +14,8 @@ import Data.Map as Map
 import Data.Map.Extras (mapKeysMaybe, mapKeysWith)
 import Data.Maybe (Maybe, fromJust)
 import Data.NonEmpty (NonEmpty)
+import Data.NonEmpty.Extras as NonEmpty
+import Data.NonEmpty.Indexed (index)
 import Data.NonEmpty.Indexed as Indexed
 import Data.Rational (Rational, toNumber, (%))
 import Data.Set (Set)
@@ -53,6 +55,20 @@ relative ::
 relative f =
   Dist.make <<<
   Indexed.index (Tuple <*> f) (Map.fromFoldable <<< Set.map (Tuple <*> f))
+
+focus ::
+     forall a.
+     Ord a
+  => a
+  -> Spread a
+focus special =
+  Dist.make <<<
+  index id Map.fromFoldable <<< NonEmpty.map Set.map (apply Tuple prob)
+  where
+    prob a =
+      if a == special
+        then top
+        else bottom
 
 reshape ::
      forall a. Ord a
