@@ -12,6 +12,7 @@ import Data.List (List(Nil), (:))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Map.Extras (mapKeysMaybe, mapKeysWith)
+import Data.Map.Extras as Map
 import Data.Maybe (Maybe, fromJust)
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty.Extras as NonEmpty
@@ -209,9 +210,9 @@ mapMaybe f dist =
 toMap ::
      forall v k.
      Ord k
-  => Indexed.NonEmpty Map k v
-  -> Map k v
-toMap = Indexed.fromNonEmpty Map.insert
+  => Indexed.NonEmpty Map k Prob
+  -> Map k Prob
+toMap = Indexed.fromNonEmpty (Map.insertWith Prob.add)
 
 lift ::
      forall a b.
