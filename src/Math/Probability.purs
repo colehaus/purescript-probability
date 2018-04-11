@@ -13,7 +13,7 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Map.Extras (mapKeysMaybe, mapKeysWith)
 import Data.Map.Extras as Map
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty.Extras as NonEmpty
 import Data.NonEmpty.Indexed (index)
@@ -23,7 +23,7 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (Tuple(Tuple))
 import Math (pow, sqrt)
-import Partial.Unsafe (unsafePartialBecause)
+import Partial.Unsafe (unsafeCrashWith)
 
 import Math.Probability.Dist as Dist
 import Math.Probability.Dist.Internal (Dist(..))
@@ -105,10 +105,10 @@ lookup p =
   Dist.sum <<<
   asList <<< Map.toUnfoldable <<< Map.filterKeys p <<< toMap <<< Dist.unmake
   where
-    fromJustNoted x =
-      unsafePartialBecause
-        "Any individual event in a `Dist` should have a proper probability" $
-      fromJust x
+    fromJustNoted (Just a) = a
+    fromJustNoted Nothing =
+      unsafeCrashWith
+        "Any individual event in a `Dist` should have a proper probability"
     asList :: List (Tuple a Prob) -> List (Tuple a Prob)
     asList = id
 
