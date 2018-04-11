@@ -10,19 +10,18 @@ import Data.Foldable as Foldable
 import Data.List (List(Nil, Cons))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (fromJust)
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty.Indexed as Indexed
 import Data.Ratio (Ratio)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (Tuple(..), fst, snd)
-import Partial.Unsafe (unsafeCrashWith, unsafePartialBecause)
-
 import Math.Probability.Dist.Internal (Dist(..), unDist)
 import Math.Probability.Dist.Internal (Dist) as ForReExport
 import Math.Probability.Prob (Prob)
 import Math.Probability.Prob as Prob
+import Partial.Unsafe (unsafeCrashWith)
 
 
 make ::
@@ -31,14 +30,13 @@ make ::
   -> Dist a
 make d =
   MkDist <<<
-  map (second (\x -> fromJustNote <<< Prob.make $ (Prob.unmake x / q))) $
+  map (second (\x -> fromJustNoted <<< Prob.make $ (Prob.unmake x / q))) $
   unfolded
   where
     second f (Tuple a b) = Tuple a $ f b
-    fromJustNote x =
-      unsafePartialBecause
-        "`Prob` over sum of `Probs` should always be between 0 and 1" $
-      fromJust x
+    fromJustNoted (Just a) = a
+    fromJustNoted Nothing = unsafeCrashWith
+        "`Prob` over sum of `Probs` should always be between 0 and 1"
     q = sum unfolded
     unfolded = Map.toUnfoldable <<< Indexed.fromNonEmpty Map.insert $ d
 
