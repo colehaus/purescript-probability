@@ -1,6 +1,6 @@
 {
   "name": "purescript-probability",
-  "homepage": "https://github.com/pseudonom/purescript-probability",
+  "homepage": "https://github.com/colehaus/purescript-probability",
   "description": "Provides monadic interface for computation with discrete random variables.",
   "keywords": [
     "purescript",
@@ -8,13 +8,13 @@
     "probability"
   ],
   "authors": [
-    "pseudonom <escalier@riseup.net>",
+    "Cole Haus <colehaus@cryptolab.net>",
     "Martin Erwig <erwig@eecs.oregonstate.edu>",
     "Steve Kollmansberger"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/pseudonom/purescript-probability.git"
+    "url": "https://github.com/colehaus/purescript-probability.git"
   },
   "license": "BSD-3-Clause",
   "ignore": [
