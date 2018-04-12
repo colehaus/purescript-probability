@@ -30,6 +30,7 @@
     "package.json"
   ],
   "dependencies": {
+    "purescript-bigints": "~3.5.0",
     "purescript-foldable-traversable": "~3.7.1",
     "purescript-indexed-nonempty": "~0.1.0",
     "purescript-lists": "~4.12.0",

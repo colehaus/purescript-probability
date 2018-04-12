@@ -6,37 +6,35 @@ import Data.List (List)
 import Data.List as List
 import Data.Tuple (Tuple(..))
 
-import Math.Probability.Prob.Internal (Prob)
+newtype Dist p a = MkDist (List (Tuple a p))
+derive newtype instance eqDist :: (Eq a, Eq p) => Eq (Dist p a)
+derive newtype instance ordDist :: (Ord a, Ord p) => Ord (Dist p a)
+derive newtype instance showDist :: (Show a, Show p) => Show (Dist p a)
 
-newtype Dist a = MkDist (List (Tuple a Prob))
-derive newtype instance eqDist :: (Eq a) => Eq (Dist a)
-derive newtype instance ordDist :: (Ord a) => Ord (Dist a)
-derive newtype instance showDist :: (Show a) => Show (Dist a)
-
-instance functorDist :: Functor Dist where
+instance functorDist :: Functor (Dist p) where
   map f (MkDist d) = MkDist $ first f <$> d
     where
-      first f (Tuple a b) = Tuple (f a) b
+      first g (Tuple a b) = Tuple (g a) b
 
-instance applyDist :: Apply Dist where
+instance applyDist :: Semigroup p => Apply (Dist p) where
   apply (MkDist d) a = MkDist do
     Tuple f p <- d
     Tuple b q <- (\(MkDist t) -> t) a
     pure $ Tuple (f b) (p <> q)
 
-instance applicativeDist :: Applicative Dist where
+instance applicativeDist :: (Bounded p, Semigroup p) => Applicative (Dist p) where
   pure x = MkDist <<< List.singleton $ Tuple x top
 
-instance bindDist :: Bind Dist where
+instance bindDist :: Semigroup p => Bind (Dist p) where
   bind (MkDist d) f = MkDist $ do
     Tuple a p <- d
     Tuple b q <- (\(MkDist t) -> t) $ f a
     pure $ Tuple b (p <> q)
 
-instance monadDist :: Monad Dist
+instance monadDist :: (Bounded p, Semigroup p) => Monad (Dist p)
 
-lift :: forall a. (List (Tuple a Prob) -> List (Tuple a Prob)) -> Dist a -> Dist a
+lift :: forall a p. (List (Tuple a p) -> List (Tuple a p)) -> Dist p a -> Dist p a
 lift f (MkDist a) = MkDist $ f a
 
-unDist :: forall a. Dist a -> List (Tuple a Prob)
+unDist :: forall a p. Dist p a -> List (Tuple a p)
 unDist (MkDist d) = d
