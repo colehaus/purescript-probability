@@ -59,16 +59,18 @@ sum = Foldable.sum <<< map snd
 unmake ::
   forall a p.
      Ord a
+  => Semiring p
   => Dist p a
   -> Indexed.NonEmpty Map a p
 unmake d =
   case unDist d of
-    Cons a tail -> a Indexed.:| Map.fromFoldable tail
+    Cons a tail -> a Indexed.:| Map.fromFoldableWith (+) tail
     Nil -> unsafeCrashWith "A `Dist` should always have at least one element"
 
 probs ::
      forall a p.
      Ord a
+  => Semiring p
   => Dist p a
   -> NonEmpty List p
 probs = Indexed.deindex snd Map.values <<< unmake
@@ -76,6 +78,7 @@ probs = Indexed.deindex snd Map.values <<< unmake
 values ::
      forall a p.
      Ord a
+  => Semiring p
   => Dist p a
   -> NonEmpty Set a
 values = Indexed.deindex fst (Set.fromFoldable <<< Map.keys) <<< unmake
