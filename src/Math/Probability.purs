@@ -84,6 +84,7 @@ focus special =
 reshape ::
      forall a p.
      Ord a
+  => Semiring p
   => Spread p a
   -> Dist p a
   -> Dist p a
