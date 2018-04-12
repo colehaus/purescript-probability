@@ -7,82 +7,95 @@ module Math.Probability
 import Prelude
 
 import Data.Foldable as Foldable
-import Data.Int (round)
 import Data.List (List(Nil), (:))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Map.Extras (mapKeysMaybe, mapKeysWith)
 import Data.Map.Extras as Map
-import Data.Maybe (Maybe(Nothing, Just))
+import Data.Maybe (Maybe)
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty.Extras as NonEmpty
 import Data.NonEmpty.Indexed (index)
 import Data.NonEmpty.Indexed as Indexed
-import Data.Rational (Rational, toNumber, (%))
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (Tuple(Tuple))
-import Math (pow, sqrt)
-import Partial.Unsafe (unsafeCrashWith)
+import Math (sqrt)
 
 import Math.Probability.Dist as Dist
 import Math.Probability.Dist.Internal (Dist(..))
 import Math.Probability.Dist.Internal as Dist
-import Math.Probability.Prob as Prob
-import Math.Probability.Prob.Internal (Prob(..))
-import Math.Probability.Prob.Internal as Prob
 
 
-complement :: Prob -> Prob
-complement (MkProb p) = MkProb $ (1 % 1) - p
+complement :: forall p. Bounded p => Ring p => p -> p
+complement p = top - p
 
-choose :: forall a. Prob -> a -> a -> Dist a
+choose ::
+     forall a p.
+     Bounded p
+  => Ring p
+  => p
+  -> a
+  -> a
+  -> Dist p a
 choose p x y = MkDist $ Tuple x p : Tuple y (complement p) : Nil
 
-type Spread a = NonEmpty Set a -> Dist a
+type Spread p a = NonEmpty Set a -> Dist p a
 
 uniform ::
-     forall a.
-     Ord a
-  => Spread a
+     forall a p.
+     Bounded p
+  => EuclideanRing p
+  => Ord a
+  => Spread p a
 uniform =
   Dist.make <<<
   Indexed.index (_ `Tuple` top) (Map.fromFoldable <<< Set.map (_ `Tuple` top))
 
 relative ::
-     forall a. Ord a
-  => (a -> Prob)
-  -> Spread a
+     forall a p.
+     EuclideanRing p
+  => Ord a
+  => (a -> p)
+  -> Spread p a
 relative f =
   Dist.make <<<
-  Indexed.index (Tuple <*> f) (Map.fromFoldable <<< Set.map (Tuple <*> f))
+  Indexed.index
+    (Tuple <*> f)
+    (Map.fromFoldable <<< (<$>) (Tuple <*> f) <<< asList <<< Set.toUnfoldable)
+  where
+    asList :: forall b. List b -> List b
+    asList = id
 
 focus ::
-     forall a.
-     Ord a
+     forall a p.
+     Bounded p
+  => EuclideanRing p
+  => Ord a
   => a
-  -> Spread a
+  -> Spread p a
 focus special =
   Dist.make <<<
   index id Map.fromFoldable <<< NonEmpty.map Set.map (apply Tuple prob)
   where
-    prob a =
-      if a == special
-        then top
-        else bottom
+    prob a | a == special = top
+           | otherwise = bottom
 
 reshape ::
-     forall a. Ord a
-  => Spread a
-  -> Dist a
-  -> Dist a
+     forall a p.
+     Ord a
+  => Spread p a
+  -> Dist p a
+  -> Dist p a
 reshape s = s <<< Dist.values
 
 norm ::
-     forall a. Ord a
-  => Dist a
-  -> Dist a
-norm = Dist.lift (Map.toUnfoldable <<< Map.fromFoldableWith Prob.add)
+     forall a p.
+     Semiring p
+  => Ord a
+  => Dist p a
+  -> Dist p a
+norm = Dist.lift (Map.toUnfoldable <<< Map.fromFoldableWith (+))
 
 type Event a = a -> Boolean
 
@@ -94,34 +107,38 @@ just = (==)
 
 infixr 1 lookup as ??
 lookup ::
-     forall a.
+     forall a p.
      Ord a
+  => Semiring p
   => Event a
-  -> Dist a
-  -> Prob
+  -> Dist p a
+  -> p
 lookup p =
-  fromJustNoted <<<
-  Prob.make <<<
   Dist.sum <<<
   asList <<< Map.toUnfoldable <<< Map.filterKeys p <<< toMap <<< Dist.unmake
   where
-    fromJustNoted (Just a) = a
-    fromJustNoted Nothing =
-      unsafeCrashWith
-        "Any individual event in a `Dist` should have a proper probability"
-    asList :: List (Tuple a Prob) -> List (Tuple a Prob)
+    asList :: forall b. List b -> List b
     asList = id
 
 infixl 1 ffilter as >>=?
 infixr 1 filter as ?=<<
-ffilter :: forall a. Ord a => Dist a -> Event a -> Maybe (Dist a)
+ffilter ::
+     forall a p.
+     Ord a
+  => EuclideanRing p
+  => Semiring p
+  => Dist p a
+  -> Event a
+  -> Maybe (Dist p a)
 ffilter = flip filter
 filter ::
-     forall a.
+     forall a p.
      Ord a
+  => EuclideanRing p
+  => Semiring p
   => Event a
-  -> Dist a
-  -> Maybe (Dist a)
+  -> Dist p a
+  -> Maybe (Dist p a)
 filter p d =
   (\({ key, value }) -> Dist.make $ (Tuple key value) Indexed.:| key `Map.delete` m) <$>
   Map.findMin m
@@ -129,77 +146,100 @@ filter p d =
     m =
       Map.filterKeys p <<< toMap <<< Dist.unmake $ d
 
-cond :: forall a. Dist Boolean -> Dist a -> Dist a -> Dist a
+cond ::
+     forall a p.
+     Semigroup p
+  => Dist p Boolean
+  -> Dist p a
+  -> Dist p a
+  -> Dist p a
 cond b d d' = b >>= \c -> if c then d else d'
 
-joinDists :: forall a b c. (a -> b -> c) -> Dist a -> (a -> Dist b) -> Dist c
+joinDists ::
+     forall a b c p.
+     Bounded p
+  => Semigroup p
+  => (a -> b -> c)
+  -> Dist p a
+  -> (a -> Dist p b)
+  -> Dist p c
 joinDists f as bs'a = do
   a <- as
   b <- bs'a a
   pure $ f a b
 
 marginalize ::
-     forall a b.
+     forall a b p.
      Ord a
   => Ord b
+  => EuclideanRing p
   => (a -> b)
-  -> Dist a
-  -> Dist b
-marginalize f = lift $ Indexed.reindex f (mapKeysWith Prob.add f)
+  -> Dist p a
+  -> Dist p b
+marginalize f = lift $ Indexed.reindex f (mapKeysWith (+) f)
 
 type Iso a b = { to :: (a -> b), from :: (b -> a) }
 
 expected ::
-     forall a.
+     forall a p.
      Ord a
-  => Iso a Rational
-  -> Dist a
+  => Semiring a
+  => Semiring p
+  => (p -> a)
+  -> Dist p a
   -> a
-expected i =
-  i.from <<<
+expected project =
   Foldable.sum <<<
   asList <<<
-  (<$>) (\(Tuple a b) -> i.to a * Prob.unmake b) <<<
+  (<$>) (\(Tuple a p) -> a * project p) <<<
   Map.toUnfoldable <<< toMap <<< Dist.unmake
   where
-    asList :: List Rational -> List Rational
+    asList :: forall b. List b -> List b
     asList = id
 
-variance :: forall a. Iso a Rational -> Dist a -> a
-variance i xs =
-  i.from <<< expected i' $
-  (\x -> numToRational $ pow (toNumber $ x - m) 2.0) <$> xs'
+variance :: forall a p. Ord a => Ring a => Semiring p => (p -> a) -> Dist p a -> a
+variance project xs =
+  expected project $
+  (\x -> (x - m) * (x - m)) <$> xs
   where
-    numToRational n = (round $ n * 10e6) % round 10e6
-    i' = { to: id, from: id }
-    m = expected i' xs'
-    xs' = i.to <$> xs
+    m = expected project xs
 
-stdDev :: forall a. Iso a Rational -> Dist a -> a
-stdDev i = i.from <<< numToRational <<< sqrt <<< toNumber <<< i.to <<< variance i
-  where
-    numToRational n = (round $ n * 10e6) % round 10e6
+stdDev ::
+     forall a p.
+     Ord a
+  => Ring a
+  => Semiring p
+  => Iso a Number
+  -> (p -> a)
+  -> Dist p a -> a
+stdDev i project = i.from <<< sqrt <<< i.to <<< variance project
 
 size ::
-     forall a. Ord a
-  => Dist a
+     forall a p.
+     Ord a
+  => Semiring p
+  => Dist p a
   -> Int
 size = Map.size <<< toMap <<< Dist.unmake
 
 map ::
-     forall a b. Ord b
+     forall a b p.
+     Ord b
+  => Semiring p
   => (a -> b)
-  -> Dist a
-  -> Dist b
+  -> Dist p a
+  -> Dist p b
 map f = norm <<< (<$>) f
 
 mapMaybe ::
-     forall a b.
+     forall a b p.
      Ord a
   => Ord b
+  => Semiring p
+  => EuclideanRing p
   => (a -> Maybe b)
-  -> Dist a
-  -> Maybe (Dist b)
+  -> Dist p a
+  -> Maybe (Dist p b)
 mapMaybe f dist =
   (\({ key, value }) -> Dist.make $ Tuple key value Indexed.:| key `Map.delete` m) <$>
   Map.findMin m
@@ -208,17 +248,19 @@ mapMaybe f dist =
       mapKeysMaybe f <<< toMap <<< Dist.unmake $ dist
 
 toMap ::
-     forall v k.
+     forall p k.
      Ord k
-  => Indexed.NonEmpty Map k Prob
-  -> Map k Prob
-toMap = Indexed.fromNonEmpty (Map.insertWith Prob.add)
+  => Semiring p
+  => Indexed.NonEmpty Map k p
+  -> Map k p
+toMap = Indexed.fromNonEmpty (Map.insertWith (+))
 
 lift ::
-     forall a b.
-     Ord a
+     forall a b p.
+     EuclideanRing p
+  => Ord a
   => Ord b
-  => (Indexed.NonEmpty Map a Prob -> Indexed.NonEmpty Map b Prob)
-  -> Dist a
-  -> Dist b
+  => (Indexed.NonEmpty Map a p -> Indexed.NonEmpty Map b p)
+  -> Dist p a
+  -> Dist p b
 lift f = Dist.make <<< f <<< Dist.unmake
