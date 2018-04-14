@@ -4,11 +4,14 @@ import Prelude
 
 import Data.List (List)
 import Data.List as List
+import Data.Map as Map
 import Data.Tuple (Tuple(..))
 
 newtype Dist p a = MkDist (List (Tuple a p))
-derive newtype instance eqDist :: (Eq a, Eq p) => Eq (Dist p a)
-derive newtype instance ordDist :: (Ord a, Ord p) => Ord (Dist p a)
+instance eqDist :: (Ord a, Eq p, Semiring p) => Eq (Dist p a) where
+  eq (MkDist l) (MkDist r) = Map.fromFoldableWith (+) l `eq` Map.fromFoldableWith (+) r
+instance ordDist :: (Ord a, Ord p, Semiring p) => Ord (Dist p a) where
+  compare (MkDist l) (MkDist r) = Map.fromFoldableWith (+) l `compare` Map.fromFoldableWith (+) r
 derive newtype instance showDist :: (Show a, Show p) => Show (Dist p a)
 
 instance functorDist :: Functor (Dist p) where
