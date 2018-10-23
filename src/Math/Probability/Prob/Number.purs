@@ -2,11 +2,10 @@ module Math.Probability.Prob.Number where
 
 import Prelude
 
-import Data.Generic (class Generic)
-import Data.Monoid (class Monoid)
+import Data.Generic.Rep (class Generic)
 
 newtype Prob = MkProb Number
-derive instance genericProb :: Generic Prob
+derive instance genericProb :: Generic Prob _
 derive newtype instance eqProb :: Eq Prob
 derive newtype instance ordProb :: Ord Prob
 derive newtype instance showProb :: Show Prob

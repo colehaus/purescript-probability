@@ -65,7 +65,7 @@ relative f =
     (Map.fromFoldable <<< (<$>) (Tuple <*> f) <<< asList <<< Set.toUnfoldable)
   where
     asList :: forall b. List b -> List b
-    asList = id
+    asList = identity
 
 focus ::
      forall a p.
@@ -76,7 +76,7 @@ focus ::
   -> Spread p a
 focus special =
   Dist.make <<<
-  index id Map.fromFoldable <<< NonEmpty.map Set.map (apply Tuple prob)
+  index identity Map.fromFoldable <<< NonEmpty.map Set.map (apply Tuple prob)
   where
     prob a | a == special = top
            | otherwise = bottom
@@ -119,7 +119,7 @@ lookup p =
   asList <<< Map.toUnfoldable <<< Map.filterKeys p <<< toMap <<< Dist.unmake
   where
     asList :: forall b. List b -> List b
-    asList = id
+    asList = identity
 
 infixl 1 ffilter as >>=?
 infixr 1 filter as ?=<<
@@ -196,7 +196,7 @@ expected project =
   Map.toUnfoldable <<< toMap <<< Dist.unmake
   where
     asList :: forall b. List b -> List b
-    asList = id
+    asList = identity
 
 variance :: forall a p. Ord a => Ring a => Semiring p => (p -> a) -> Dist p a -> a
 variance project xs =
