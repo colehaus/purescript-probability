@@ -3,10 +3,13 @@ module Math.Probability.Prob.BigInt where
 import Prelude
 
 import Data.BigInt (BigInt, fromInt)
-import Data.Monoid (class Monoid)
+import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype)
 import Data.Ratio (Ratio, (%))
 
 newtype Prob = MkProb (Ratio BigInt)
+derive instance genericProb :: Generic Prob _
+derive instance newtypeProb :: Newtype Prob _
 derive newtype instance eqProb :: Eq Prob
 derive newtype instance ordProb :: Ord Prob
 derive newtype instance showProb :: Show Prob
