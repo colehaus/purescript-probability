@@ -34,6 +34,3 @@ mapKeysMaybeWithValueWith :: forall j k v. Ord j => Ord k => (k -> Maybe j) -> (
 mapKeysMaybeWithValueWith f g m = foldlWithIndex h mempty m
   where
     h k acc v = maybe acc (flip (uncurry insert) acc) $ g k v <<< (flip lookup acc) =<< f k
-
-insertWith :: forall k v. Ord k => (v -> v -> v) -> k -> v -> Map k v -> Map k v
-insertWith f k v = Map.unionWith f (Map.singleton k v)

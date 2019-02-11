@@ -11,7 +11,6 @@ import Data.List (List(Nil), (:))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Map.Extras (mapKeysMaybe, mapKeysWith)
-import Data.Map.Extras as Map
 import Data.Maybe (Maybe)
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty.Extras as NonEmpty
